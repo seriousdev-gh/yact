@@ -1,9 +1,11 @@
 # YACT — Yet Another Calorie Tracker
 
+[![CI](https://github.com/seriousdev-gh/yact/actions/workflows/ci.yml/badge.svg)](https://github.com/seriousdev-gh/yact/actions/workflows/ci.yml)
+
 Офлайн-first счётчик калорий и БЖУ под Android. Без аккаунтов, без рекламы,
 без обязательной сети — все данные живут в локальной базе на устройстве.
 
-![Дневник](docs/images/diary-light.png)
+<img src="docs/images/diary-light.png" width="320" alt="Дневник">
 
 ## Возможности
 
