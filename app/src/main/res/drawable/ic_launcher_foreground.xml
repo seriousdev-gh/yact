@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  YACT launcher foreground: a plate (rim + well) encircled by a clockwise
+  progress arrow ("yet another day of it") with a fork drawn as the letter Y
+  in the centre. Geometry matches the SVG preview and the monochrome layer.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Progress arc, r=30: clockwise 270 deg from the right to the top. -->
+    <path
+        android:pathData="M 84,54 A 30,30 0 1 1 54,24"
+        android:strokeColor="#FFF2A93B"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Arrowhead at the arc end, pointing along the clockwise tangent. -->
+    <path
+        android:pathData="M 62.5,24 L 49.5,16.5 L 49.5,31.5 Z"
+        android:fillColor="#FFF2A93B" />
+
+    <!-- Plate rim, r=21. -->
+    <path
+        android:pathData="M 33,54 a 21,21 0 1 1 42,0 a 21,21 0 1 1 -42,0 Z"
+        android:strokeColor="#FFE9F2F0"
+        android:strokeWidth="3"
+        android:fillColor="#1AFFFFFF" />
+
+    <!-- Plate well, r=13.5. -->
+    <path
+        android:pathData="M 40.5,54 a 13.5,13.5 0 1 1 27,0 a 13.5,13.5 0 1 1 -27,0 Z"
+        android:strokeColor="#FFBFD9D4"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+
+    <!-- Fork as the letter Y. -->
+    <path
+        android:pathData="M 43,41 L 54,51.5 M 65,41 L 54,51.5 M 54,51.5 L 54,67"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

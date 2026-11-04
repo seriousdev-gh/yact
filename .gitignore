@@ -1,0 +1,81 @@
+# --- Installed agent skills (external, re-installable) ---
+.omp/skills/
+
+# --- Gradle ---
+.gradle/
+build/
+.kotlin/
+local.properties
+gradle-app.setting
+.gradletasknamecache
+.settings/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!**/src/**/build/
+
+# --- Signing / secrets ---
+*.jks
+*.keystore
+*.pk8
+*.p12
+*.env
+.env
+keystore.properties
+signing.properties
+secrets.properties
+
+# --- Android build / tooling ---
+bin/
+gen/
+out/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+
+# --- Native libs (tracked only under jniLibs) ---
+*.so
+!*/jniLibs/*.so
+!**/jniLibs/**/*.so
+
+# --- JVM crash / profiling artifacts ---
+*.hprof
+*.log
+*.exec
+hs_err_pid*
+replay_pid*
+
+# --- IDE: IntelliJ / Android Studio ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+.fleet/
+.vscode/
+*.code-workspace
+
+# --- Editor / OS ---
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Scratch ---
+.tmp/
+tmp/
+*.tmp
+*.orig
+*.rej
