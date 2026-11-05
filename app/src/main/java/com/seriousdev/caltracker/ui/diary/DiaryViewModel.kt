@@ -42,8 +42,6 @@ data class DiaryUiState(
     val totals: Macros,
     val goals: Macros?,
     val isEmpty: Boolean,
-    /** Meal types that have entries on the previous day (copyable). */
-    val yesterdayMealTypes: Set<MealType> = emptySet(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -55,6 +53,11 @@ class DiaryViewModel(
 
     private val day = MutableStateFlow(initialDayEpochDay)
 
+    /** Moves the viewed day (e.g. following a copy that targeted another day). */
+    fun showDay(epochDay: Long) {
+        day.value = epochDay
+    }
+
     private val goals = profileRepository.observe()
         .map { profile -> profile?.let { GoalsCalculator.dailyGoals(it) } }
 
@@ -63,8 +66,7 @@ class DiaryViewModel(
             combine(
                 diaryRepository.observeWithProducts(dayValue),
                 goals,
-                diaryRepository.observeForDay(dayValue - 1),
-            ) { rows, goalsValue, yesterdayRows ->
+            ) { rows, goalsValue ->
                 val items = rows.map { (entry, product) ->
                     DiaryItem(entry, product, product.forGrams(entry.grams))
                 }
@@ -89,7 +91,6 @@ class DiaryViewModel(
                     totals = DiaryTotals.sum(items.map { it.entry }, items.map { it.product }),
                     goals = goalsValue,
                     isEmpty = items.isEmpty(),
-                    yesterdayMealTypes = yesterdayRows.map { it.mealType }.toSet(),
                 )
             }
         }
@@ -115,13 +116,24 @@ class DiaryViewModel(
         viewModelScope.launch { diaryRepository.delete(entryId) }
     }
 
-    /** Copies yesterday's entries of [type] into the viewed day as new records. */
-    fun copyMealFromYesterday(type: MealType) {
+    /** Bulk-delete of the selected entries (selection mode). */
+    fun deleteEntries(entryIds: List<Long>) {
+        viewModelScope.launch { entryIds.forEach { diaryRepository.delete(it) } }
+    }
+
+    /**
+     * Copies the selected diary items into [targetDay]/[mealType] as new
+     * entries (the "eat the same thing again" flow: pick yesterday's entries,
+     * copy them onto today's dinner).
+     */
+    fun copyEntriesTo(copies: List<CopyTarget>, targetDay: Long, mealType: MealType) {
         viewModelScope.launch {
-            val source = diaryRepository.entriesForMeal(day.value - 1, type)
-            source.forEach { diaryRepository.add(day.value, type, it.productId, it.grams) }
+            copies.forEach { diaryRepository.add(targetDay, mealType, it.productId, it.grams) }
         }
     }
+
+    /** One row to duplicate: what was eaten and how much. */
+    data class CopyTarget(val productId: Long, val grams: Double)
 
     fun updateEntry(entryId: Long, grams: Double, mealType: MealType) {
         viewModelScope.launch {

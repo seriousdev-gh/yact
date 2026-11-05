@@ -1,6 +1,7 @@
 package com.seriousdev.caltracker.ui.nav
 
 import androidx.navigation3.runtime.NavKey
+import com.seriousdev.caltracker.domain.MealType
 import kotlinx.serialization.Serializable
 import java.util.concurrent.atomic.AtomicLong
 
@@ -30,10 +31,12 @@ sealed interface AppKey : NavKey {
      * Add-food flow for a specific day; pushed on top of a root tab.
      * [navId] makes every push a distinct entry (fresh ViewModel/saved state per open).
      * [preselectedProductId] opens that product's portion dialog immediately.
+     * [mealType] preselects the meal slot in the portion dialog (from a section "+").
      */
     @Serializable
     data class AddFood(
         val dayEpochDay: Long,
+        val mealType: MealType? = null,
         val preselectedProductId: Long? = null,
         val navId: Long = newNavId(),
     ) : AppKey
@@ -56,6 +59,7 @@ sealed interface AppKey : NavKey {
         val prefillCarbs: String? = null,
         val prefillBarcode: String? = null,
         val logMealDay: Long? = null,
+        val logMealType: MealType? = null,
         val ingredientRecipeNavId: Long? = null,
         val navId: Long = newNavId(),
     ) : AppKey
@@ -87,10 +91,12 @@ sealed interface AppKey : NavKey {
      * Barcode scanner -> meal dialog (known product) or prefilled product form.
      * With [recipeFormNavId] it runs in recipe-ingredient mode instead (results
      * continue into [IngredientPick] for that form); then [dayEpochDay] is unused.
+     * [mealType] is the meal slot preset carried into the chained flows.
      */
     @Serializable
     data class BarcodeScan(
         val dayEpochDay: Long? = null,
+        val mealType: MealType? = null,
         val recipeFormNavId: Long? = null,
         val navId: Long = newNavId(),
     ) : AppKey

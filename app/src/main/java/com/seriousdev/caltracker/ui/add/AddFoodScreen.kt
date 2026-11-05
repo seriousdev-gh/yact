@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.seriousdev.caltracker.LocalAppContainer
+import com.seriousdev.caltracker.domain.MealType
 import com.seriousdev.caltracker.domain.Product
 import com.seriousdev.caltracker.domain.ProductPortion
 import com.seriousdev.caltracker.ui.format.kcalText
@@ -50,6 +51,7 @@ fun AddFoodScreen(
     dayEpochDay: Long,
     navId: Long,
     preselectedProductId: Long? = null,
+    preselectedMealType: MealType? = null,
     onEditProduct: (Product) -> Unit,
     onDone: () -> Unit,
     onPickedForRecipe: ((productId: Long, grams: Double) -> Unit)? = null,
@@ -155,6 +157,7 @@ fun AddFoodScreen(
             product = product,
             portions = portionList,
             showMealTypePicker = onPickedForRecipe == null,
+            initialMealType = preselectedMealType ?: MealType.BREAKFAST,
             onDismiss = { pendingId = null },
             onConfirm = { grams, meal ->
                 if (onPickedForRecipe != null) onPickedForRecipe(product.id, grams)

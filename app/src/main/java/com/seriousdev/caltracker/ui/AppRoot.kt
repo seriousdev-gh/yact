@@ -114,8 +114,8 @@ private fun ScreenContent(key: NavKey, backStack: NavBackStack<NavKey>) {
     when (key) {
         AppKey.Today -> DiaryScreen(
             dayEpochDay = com.seriousdev.caltracker.ui.format.todayEpochDay(),
-            onAddFood = { day -> backStack.add(AppKey.AddFood(day)) },
-            onScanBarcode = { day -> backStack.add(AppKey.BarcodeScan(dayEpochDay = day)) },
+            onAddFood = { day, meal -> backStack.add(AppKey.AddFood(day, mealType = meal)) },
+            onScanBarcode = { day, meal -> backStack.add(AppKey.BarcodeScan(dayEpochDay = day, mealType = meal)) },
             onEditProduct = { product ->
                 backStack.add(
                     if (product.isRecipe) AppKey.RecipeForm(product.id) else AppKey.ProductForm(product.id),
@@ -137,6 +137,7 @@ private fun ScreenContent(key: NavKey, backStack: NavBackStack<NavKey>) {
             dayEpochDay = key.dayEpochDay,
             navId = key.navId,
             preselectedProductId = key.preselectedProductId,
+            preselectedMealType = key.mealType,
             onEditProduct = { product ->
                 backStack.add(
                     if (product.isRecipe) AppKey.RecipeForm(product.id) else AppKey.ProductForm(product.id),
@@ -164,7 +165,7 @@ private fun ScreenContent(key: NavKey, backStack: NavBackStack<NavKey>) {
             onSaved = { id ->
                 backStack.remove(key)
                 key.logMealDay?.let { day ->
-                    backStack.add(AppKey.AddFood(dayEpochDay = day, preselectedProductId = id))
+                    backStack.add(AppKey.AddFood(dayEpochDay = day, mealType = key.logMealType, preselectedProductId = id))
                 }
                 key.ingredientRecipeNavId?.let { recipeNavId ->
                     backStack.add(AppKey.IngredientPick(recipeFormNavId = recipeNavId, preselectedProductId = id))
@@ -207,7 +208,7 @@ private fun ScreenContent(key: NavKey, backStack: NavBackStack<NavKey>) {
                     backStack.add(AppKey.IngredientPick(key.recipeFormNavId, preselectedProductId = id))
                 } else {
                     key.dayEpochDay?.let { day ->
-                        backStack.add(AppKey.AddFood(dayEpochDay = day, preselectedProductId = id))
+                        backStack.add(AppKey.AddFood(dayEpochDay = day, mealType = key.mealType, preselectedProductId = id))
                     }
                 }
             },
@@ -222,6 +223,7 @@ private fun ScreenContent(key: NavKey, backStack: NavBackStack<NavKey>) {
                         prefillCarbs = prefill.carbs,
                         prefillBarcode = prefill.barcode,
                         logMealDay = key.dayEpochDay,
+                        logMealType = key.mealType,
                         ingredientRecipeNavId = key.recipeFormNavId,
                     ),
                 )

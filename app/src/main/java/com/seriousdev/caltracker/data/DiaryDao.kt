@@ -58,9 +58,6 @@ interface MealEntryDao {
     @Query("SELECT * FROM meal_entries WHERE dayEpochDay = :day ORDER BY timestampMs")
     fun observeForDay(day: Long): Flow<List<MealEntryEntity>>
 
-    @Query("SELECT * FROM meal_entries WHERE dayEpochDay = :day AND mealType = :mealType ORDER BY timestampMs")
-    suspend fun entriesForMeal(day: Long, mealType: String): List<MealEntryEntity>
-
     @Transaction
     @Query("SELECT * FROM meal_entries WHERE dayEpochDay = :day")
     fun observeWithProductsForDay(day: Long): Flow<List<MealEntryWithProduct>>

@@ -281,10 +281,6 @@ open class DiaryRepository(private val dao: MealEntryDao) {
             ),
         )
 
-    /** Entries of one meal slot on a day (source for "copy from yesterday"). */
-    open suspend fun entriesForMeal(dayEpochDay: Long, mealType: MealType): List<MealEntry> =
-        dao.entriesForMeal(dayEpochDay, mealType.name).map { it.toDomain() }
-
     open suspend fun updateGrams(entryId: Long, grams: Double) {
         val entry = dao.entryById(entryId) ?: return
         dao.update(entry.copy(grams = grams))

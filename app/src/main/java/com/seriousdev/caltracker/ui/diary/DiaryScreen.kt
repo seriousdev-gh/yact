@@ -4,34 +4,51 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +56,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +74,9 @@ import com.seriousdev.caltracker.ui.add.PortionDialog
 import com.seriousdev.caltracker.ui.format.gramsText
 import com.seriousdev.caltracker.ui.format.kcalText
 import com.seriousdev.caltracker.ui.format.macrosShortText
+import com.seriousdev.caltracker.ui.format.todayEpochDay
 import com.seriousdev.caltracker.ui.nav.IngredientPrefill
+import kotlinx.coroutines.launch
 
 /**
  * "Today" diary: progress against daily goals plus meal groups for the selected day.
@@ -63,8 +84,8 @@ import com.seriousdev.caltracker.ui.nav.IngredientPrefill
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiaryScreen(
-    onAddFood: (Long) -> Unit,
-    onScanBarcode: (Long) -> Unit,
+    onAddFood: (Long, MealType) -> Unit,
+    onScanBarcode: (Long, MealType) -> Unit,
     onEditProduct: (Product) -> Unit,
     onCreateRecipe: (List<IngredientPrefill>) -> Unit,
     dayEpochDay: Long,
@@ -76,9 +97,14 @@ fun DiaryScreen(
     val state by vm.state.collectAsState()
 
     var editing by rememberSaveable { mutableStateOf<Long?>(null) }
-    var fabMenuOpen by rememberSaveable { mutableStateOf(false) }
+    // Which meal section's "+" menu is open (null: none).
+    var addMenuType by rememberSaveable { mutableStateOf<MealType?>(null) }
+    // Selection-mode action dialogs.
+    var copyDialogOpen by rememberSaveable { mutableStateOf(false) }
+    var confirmDeleteOpen by rememberSaveable { mutableStateOf(false) }
     // Multi-select mode (entered by long-pressing an entry): entry ids in tap
-    // order; non-empty == selection mode active. Feeds "создать рецепт".
+    // order; non-empty == selection mode active. Feeds "create recipe",
+    // bulk copy and bulk delete.
     var selectedIds by rememberSaveable(
         stateSaver = listSaver<List<Long>, Long>(save = { it }, restore = { it }),
     ) { mutableStateOf(emptyList()) }
@@ -87,8 +113,11 @@ fun DiaryScreen(
     var portionRefresh by rememberSaveable { mutableStateOf(0) }
     val editingItem = editing?.let { id -> state.groups.flatMap { it.items }.firstOrNull { it.entry.id == id } }
     val selecting = selectedIds.isNotEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = Modifier.fillMaxSize(),
         topBar = {
             if (selecting) {
@@ -106,7 +135,13 @@ fun DiaryScreen(
                                 byId[id]?.let { item -> IngredientPrefill(item.product.id, item.entry.grams) }
                             })
                             selectedIds = emptyList()
-                        }) { Text("Создать рецепт") }
+                        }) { Text("Рецепт") }
+                        IconButton(onClick = { copyDialogOpen = true }) {
+                            Icon(Icons.Filled.ContentCopy, contentDescription = "Скопировать выбранные в другой приём")
+                        }
+                        IconButton(onClick = { confirmDeleteOpen = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Удалить выбранные")
+                        }
                     },
                 )
             } else {
@@ -125,32 +160,12 @@ fun DiaryScreen(
                 )
             }
         },
-        floatingActionButton = {
-            if (!selecting) androidx.compose.foundation.layout.Box {
-                FloatingActionButton(onClick = { fabMenuOpen = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Добавить продукт")
-                }
-                androidx.compose.material3.DropdownMenu(
-                    expanded = fabMenuOpen,
-                    onDismissRequest = { fabMenuOpen = false },
-                ) {
-                    androidx.compose.material3.DropdownMenuItem(
-                        text = { Text("Добавить вручную") },
-                        onClick = { fabMenuOpen = false; onAddFood(state.dayEpochDay) },
-                    )
-                    androidx.compose.material3.DropdownMenuItem(
-                        text = { Text("Сканировать штрихкод") },
-                        onClick = { fabMenuOpen = false; onScanBarcode(state.dayEpochDay) },
-                    )
-                }
-            }
-        },
     ) { insets ->
         LazyColumn(
             modifier = Modifier
                 .padding(insets)
                 .fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp, 16.dp, 16.dp, 88.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp, 16.dp, 16.dp, 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { GoalCard(state) }
@@ -158,16 +173,14 @@ fun DiaryScreen(
                 item {
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                         Text(
-                            "Записей пока нет. Нажмите «+», чтобы добавить продукт.",
+                            "Записей пока нет. Нажмите «+» в нужном приёме пищи, чтобы добавить продукт.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
             }
-            val visibleTypes = MealType.entries.filter { type ->
-                state.groups.any { it.type == type } || state.yesterdayMealTypes.contains(type)
-            }
+            val visibleTypes = MealType.entries
             items(visibleTypes, key = { it.name }) { type ->
                 val group = state.groups.firstOrNull { it.type == type }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -177,14 +190,37 @@ fun DiaryScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(type.ruLabel, style = MaterialTheme.typography.titleSmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (state.yesterdayMealTypes.contains(type)) {
-                                TextButton(onClick = { vm.copyMealFromYesterday(type) }) {
-                                    Text("со вчера", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             if (group != null) {
                                 Text("${kcalText(group.subtotal.kcal)} ккал", style = MaterialTheme.typography.labelLarge)
+                            }
+                            Box {
+                                IconButton(
+                                    onClick = { addMenuType = type },
+                                    enabled = !selecting,
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Add,
+                                        contentDescription = "Добавить в «${type.ruLabel}»",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = addMenuType == type,
+                                    onDismissRequest = { addMenuType = null },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Добавить вручную") },
+                                        onClick = { addMenuType = null; onAddFood(state.dayEpochDay, type) },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Сканировать штрихкод") },
+                                        onClick = { addMenuType = null; onScanBarcode(state.dayEpochDay, type) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -244,6 +280,124 @@ fun DiaryScreen(
                     onEditProduct(item.product)
                 },
             )
+        }
+    }
+
+    if (copyDialogOpen) {
+        CopyToDialog(
+            entriesCount = selectedIds.size,
+            onDismiss = { copyDialogOpen = false },
+            onConfirm = { day, meal ->
+                val byId = state.groups.flatMap { it.items }.associateBy { it.entry.id }
+                val copies = selectedIds.mapNotNull { id -> byId[id] }
+                    .map { DiaryViewModel.CopyTarget(it.product.id, it.entry.grams) }
+                vm.copyEntriesTo(copies, day, meal)
+                copyDialogOpen = false
+                selectedIds = emptyList()
+                // Follow the copy when it landed on another day; on the viewed
+                // day the new rows appear in place anyway.
+                if (day != state.dayEpochDay) vm.showDay(day)
+                scope.launch { snackbarHostState.showSnackbar("Скопировано: ${copies.size}") }
+            },
+        )
+    }
+
+    if (confirmDeleteOpen) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteOpen = false },
+            title = { Text("Удалить выбранные записи?") },
+            text = { Text("Будет удалено записей: ${selectedIds.size}.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteEntries(selectedIds)
+                    confirmDeleteOpen = false
+                    selectedIds = emptyList()
+                }) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteOpen = false }) { Text("Отмена") }
+            },
+        )
+    }
+}
+
+private const val MILLIS_PER_DAY = 86_400_000L
+
+/**
+ * Destination picker for the selection-mode copy: target day (calendar) plus
+ * target meal slot. The meal must be chosen explicitly so nothing silently
+ * lands in the wrong slot. Date-picker millis are UTC-midnight, so plain
+ * division yields the epoch day.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CopyToDialog(
+    entriesCount: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (dayEpochDay: Long, mealType: MealType) -> Unit,
+) {
+    val pickerState = rememberDatePickerState(
+        initialSelectedDateMillis = todayEpochDay() * MILLIS_PER_DAY,
+    )
+    var mealType by rememberSaveable { mutableStateOf<MealType?>(null) }
+    // The dialog is sized to fit the calendar (the platform dialog width
+    // clips its last column), and the content is one explicit Column -
+    // DatePickerDialog's content slot overlaps extra widgets with the
+    // picker's own header.
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier
+                .widthIn(max = 420.dp)
+                .heightIn(max = 720.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    "Скопировать выбранные ($entriesCount) в этот день:",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                DatePicker(state = pickerState, showModeToggle = false)
+                Text(
+                    "в приём пищи:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    MealType.entries.forEach { type ->
+                        FilterChip(
+                            selected = mealType == type,
+                            onClick = { mealType = type },
+                            label = { Text(type.ruLabel) },
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Отмена") }
+                    TextButton(
+                        enabled = mealType != null,
+                        onClick = {
+                            val day = pickerState.selectedDateMillis?.let { it / MILLIS_PER_DAY } ?: todayEpochDay()
+                            mealType?.let { onConfirm(day, it) }
+                        },
+                    ) { Text("Скопировать") }
+                }
+            }
         }
     }
 }
